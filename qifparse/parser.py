@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import six
+import locale
 from datetime import datetime
 from decimal import Decimal
 from qifparse.qif import (
@@ -29,8 +30,24 @@ class QifParserException(Exception):
 
 class QifParser(object):
 
-    @classmethod
-    def parse(cls_, file_handle, date_format=None):
+    def __init__(self, dayfirst=True,thousep=',',radixchar='.'):
+        self.dayfirst=dayfirst
+        self.thousep=thousep
+        self.radixchar=radixchar
+    
+    def to_decimal(self,sval):
+        """ Converts string to decimal in localized thousep, radix
+        """
+        dval=Decimal(sval.replace(self.thousep,'').replace(self.radixchar,'.'))
+        return(dval)
+    
+    def parse(self, file_handle):
+        if self.dayfirst==False: # i.e. '%m/%d/%Y'
+            self.month_col=0
+            self.day_col=3
+        else: #  '%d/%m/%Y'
+            self.month_col=3
+            self.day_col=0
         if isinstance(file_handle, type('')):
             raise RuntimeError(
                 six.u("parse() takes in a file handle, not a string"))
@@ -43,12 +60,12 @@ class QifParser(object):
         last_account = None
         transactions_header = None
         parsers = {
-            'category': cls_.parseCategory,
-            'account': cls_.parseAccount,
-            'transaction': cls_.parseTransaction,
-            'investment': cls_.parseInvestment,
-            'class': cls_.parseClass,
-            'memorized': cls_.parseMemorizedTransaction
+            'category': self.parseCategory,
+            'account': self.parseAccount,
+            'transaction': self.parseTransaction,
+            'investment': self.parseInvestment,
+            'class': self.parseClass,
+            'memorized': self.parseMemorizedTransaction
         }
         for chunk in chunks:
             if not chunk:
@@ -91,8 +108,8 @@ class QifParser(object):
                 qif_obj.add_class(item)
         return qif_obj
 
-    @classmethod
-    def parseClass(cls_, chunk):
+    
+    def parseClass(self, chunk):
         """
         """
         curItem = Class()
@@ -107,8 +124,8 @@ class QifParser(object):
                 curItem.description = line[1:]
         return curItem
 
-    @classmethod
-    def parseCategory(cls_, chunk):
+    
+    def parseCategory(self, chunk):
         """
         """
         curItem = Category()
@@ -133,8 +150,8 @@ class QifParser(object):
                 curItem.name = line[1:]
         return curItem
 
-    @classmethod
-    def parseAccount(cls_, chunk):
+    
+    def parseAccount(self, chunk):
         """
         """
         curItem = Account()
@@ -151,15 +168,15 @@ class QifParser(object):
             elif line[0] == 'L':
                 curItem.credit_limit = line[1:]
             elif line[0] == '/':
-                curItem.balance_date = cls_.parseQifDateTime(line[1:])
+                curItem.balance_date = self.parseQifDateTime(line[1:])
             elif line[0] == '$':
                 curItem.balance_amount = line[1:]
             else:
                 print('Line not recognized: ' + line)
         return curItem
 
-    @classmethod
-    def parseMemorizedTransaction(cls_, chunk, date_format=None):
+    
+    def parseMemorizedTransaction(self, chunk, date_format=None):
         """
         """
 
@@ -172,7 +189,7 @@ class QifParser(object):
                     line.startswith('!Type:Memorized'):
                 continue
             elif line[0] == 'T':
-                curItem.amount = Decimal(line[1:])
+                curItem.amount = self.to_decimal(line[1:])
             elif line[0] == 'C':
                 curItem.cleared = line[1:]
             elif line[0] == 'P':
@@ -209,14 +226,14 @@ class QifParser(object):
                 split.address.append(line[1:])
             elif line[0] == '$':
                 split = curItem.splits[-1]
-                split.amount = Decimal(line[1:])
+                split.amount = self.to_decimal(line[1:])
             else:
                 # don't recognise this line; ignore it
                 print ("Skipping unknown line:\n" + str(line))
         return curItem
 
-    @classmethod
-    def parseTransaction(cls_, chunk, date_format=None):
+    
+    def parseTransaction(self, chunk, date_format=None):
         """
         """
 
@@ -227,12 +244,14 @@ class QifParser(object):
         for line in lines:
             if not len(line) or line[0] == '\n' or line.startswith('!Type'):
                 continue
+            elif line[0] == 'U':
+                continue
             elif line[0] == 'D':
-                curItem.date = cls_.parseQifDateTime(line[1:])
+                curItem.date = self.parseQifDateTime(line[1:])
             elif line[0] == 'N':
                 curItem.num = line[1:]
             elif line[0] == 'T':
-                curItem.amount = Decimal(line[1:])
+                curItem.amount = self.to_decimal(line[1:])
             elif line[0] == 'C':
                 curItem.cleared = line[1:]
             elif line[0] == 'P':
@@ -281,14 +300,14 @@ class QifParser(object):
                 split.address.append(line[1:])
             elif line[0] == '$':
                 split = curItem.splits[-1]
-                split.amount = Decimal(line[1:])
+                split.amount = self.to_decimal(line[1:])
             else:
                 # don't recognise this line; ignore it
                 print ("Skipping unknown line:\n" + str(line))
         return curItem
 
-    @classmethod
-    def parseInvestment(cls_, chunk, date_format=None):
+    
+    def parseInvestment(self, chunk, date_format=None):
         """
         """
 
@@ -300,17 +319,17 @@ class QifParser(object):
             if not len(line) or line[0] == '\n' or line.startswith('!Type'):
                 continue
             elif line[0] == 'D':
-                curItem.date = cls_.parseQifDateTime(line[1:])
+                curItem.date = self.parseQifDateTime(line[1:])
             elif line[0] == 'T':
-                curItem.amount = Decimal(line[1:])
+                curItem.amount = self.to_decimal(line[1:])
             elif line[0] == 'N':
                 curItem.action = line[1:]
             elif line[0] == 'Y':
                 curItem.security = line[1:]
             elif line[0] == 'I':
-                curItem.price = Decimal(line[1:])
+                curItem.price = self.to_decimal(line[1:])
             elif line[0] == 'Q':
-                curItem.quantity = Decimal(line[1:])
+                curItem.quantity = self.to_decimal(line[1:])
             elif line[0] == 'C':
                 curItem.cleared = line[1:]
             elif line[0] == 'M':
@@ -320,13 +339,13 @@ class QifParser(object):
             elif line[0] == 'L':
                 curItem.to_account = line[2:-1]
             elif line[0] == '$':
-                curItem.amount_transfer = Decimal(line[1:])
+                curItem.amount_transfer = self.to_decimal(line[1:])
             elif line[0] == 'O':
-                curItem.commission = Decimal(line[1:])
+                curItem.commission = self.to_decimal(line[1:])
         return curItem
 
-    @classmethod
-    def parseQifDateTime(cls_, qdate):
+    
+    def parseQifDateTime(self, qdate):
         """ convert from QIF time format to ISO date string
 
         QIF is like "7/ 9/98"  "9/ 7/99" or "10/10/99" or "10/10'01" for y2k
@@ -342,11 +361,11 @@ class QifParser(object):
             if qdate[i] == " ":
                 qdate = qdate[:i] + "0" + qdate[i+1:]
         if len(qdate) == 10:  # new form with YYYY date
-            iso_date = qdate[6:10] + "-" + qdate[3:5] + "-" + qdate[0:2]
+            iso_date = qdate[6:10] + "-" + qdate[self.month_col:self.month_col+2] + "-" + qdate[self.day_col:self.day_col+2]
             return datetime.strptime(iso_date, '%Y-%m-%d')
         if qdate[5] == "'":
             C = "20"
         else:
             C = "19"
-        iso_date = C + qdate[6:8] + "-" + qdate[3:5] + "-" + qdate[0:2]
+        iso_date = C + qdate[6:8] + "-" + qdate[self.month_col:self.month_col+2] + "-" + qdate[self.day_col:self.day_col+2]
         return datetime.strptime(iso_date, '%Y-%m-%d')
