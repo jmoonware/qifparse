@@ -99,9 +99,10 @@ class Qif(object):
             return tuple(self._transactions.values())
         else:
             tr = []
-            tr.extend(self._transactions.values)
+            tr.extend(self._transactions.values())
             for acc in self._accounts:
-                tr.extend(acc.transactions)
+                tr.extend(acc.get_transactions())
+            return tuple(tr)
 
     def __str__(self):
         res = []
