@@ -12,6 +12,7 @@ from qifparse.qif import (
     Category,
     Class,
     Qif,
+	Security,
 )
 
 NON_INVST_ACCOUNT_TYPES = [
@@ -65,7 +66,8 @@ class QifParser(object):
             'transaction': self.parseTransaction,
             'investment': self.parseInvestment,
             'class': self.parseClass,
-            'memorized': self.parseMemorizedTransaction
+            'memorized': self.parseMemorizedTransaction,
+            'security': self.parseSecurity,
         }
         for chunk in chunks:
             if not chunk:
@@ -86,6 +88,8 @@ class QifParser(object):
             elif first_line == '!Type:Memorized':
                 last_type = 'memorized'
                 transactions_header = first_line
+            elif first_line == '!Type:Security':
+                last_type = 'security'
             elif chunk.startswith('!'):
                 raise QifParserException('Header not reconized')
             # if no header is recognized then
@@ -106,6 +110,8 @@ class QifParser(object):
                 qif_obj.add_category(item)
             elif last_type == 'class':
                 qif_obj.add_class(item)
+            elif last_type == 'security':
+                qif_obj.add_security(item)
         return qif_obj
 
     
@@ -122,6 +128,23 @@ class QifParser(object):
                 curItem.name = line[1:]
             elif line[0] == 'D':
                 curItem.description = line[1:]
+        return curItem
+    
+    def parseSecurity(self, chunk):
+        """
+        """
+        curItem = Security()
+        lines = chunk.split('\n')
+        for line in lines:
+            if not len(line) or line[0] == '\n' or \
+                    line.startswith('!Type:Security'):
+                continue
+            elif line[0] == 'N':
+                curItem.name = line[1:]
+            elif line[0] == 'T':
+                curItem.type = line[1:]
+            elif line[0] == 'S':
+                curItem.symbol = line[1:]
         return curItem
 
     

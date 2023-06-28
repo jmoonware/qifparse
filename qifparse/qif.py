@@ -27,6 +27,7 @@ class Qif(object):
         self._accounts = []
         self._categories = []
         self._classes = []
+        self._securities = []
         self._transactions = {}
         self._last_header = None
 
@@ -34,6 +35,11 @@ class Qif(object):
         if not isinstance(item, Account):
             raise RuntimeError(six.u("item not recognized"))
         self._accounts.append(item)
+
+    def add_security(self, item):
+        if not isinstance(item, Security):
+            raise RuntimeError(six.u("item not recognized"))
+        self._securities.append(item)
 
     def add_category(self, item):
         if not isinstance(item, Category):
@@ -92,6 +98,12 @@ class Qif(object):
         if not name:
             return tuple(self._classes)
         res = [klass for klass in self._classes if klass.name == name]
+        return tuple(res)
+
+    def get_securities(self, symbol=None):
+        if not symbol:
+            return tuple(self._securities)
+        res = [s for s in self._securities if s.symbol == symbol]
         return tuple(res)
 
     def get_transactions(self, recursive=False):
@@ -340,4 +352,11 @@ class Class(BaseEntry):
     _fields = [
         Field('name', 'string', 'N', required=True),
         Field('description', 'string', 'D'),
+    ]
+
+class Security(BaseEntry):
+    _fields = [
+        Field('name', 'string', 'N', required=True),
+        Field('symbol', 'string', 'S'),
+        Field('type', 'string', 'T'),
     ]
