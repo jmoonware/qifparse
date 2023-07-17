@@ -53,7 +53,8 @@ class Qif(object):
 
     def add_transaction(self, item, header=None):
         if not isinstance(item, Transaction)\
-                and not isinstance(item, MemorizedTransaction):
+                and not isinstance(item, MemorizedTransaction)\
+                and not isinstance(item, Investment):
             raise RuntimeError(six.u("item not recognized"))
         if header and not header in self._transactions:
             self._transactions[header] = []
@@ -128,6 +129,10 @@ class Qif(object):
             res.append('!Type:Class')
             for cat in self._classes:
                 res.append(str(cat))
+        if self._securities and len(self._securities) > 0:
+            for sec in self._securities:
+                res.append('!Type:Security')
+                res.append(str(sec))
         if self._transactions:
             for header in self._transactions.keys():
                 transactions = self._transactions[header]
@@ -272,7 +277,9 @@ class Investment(BaseEntry):
         Field('amount', 'decimal', 'T'),
         Field('memo', 'string', 'M'),
         Field('first_line', 'string', 'P'),
+        # to_account or category should be mutually exclusive
         Field('to_account', 'reference', 'L'),
+        Field('category', 'string', 'L'),
         Field('amount_transfer', 'decimal', '$'),
         Field('commission', 'decimal', 'O'),
     ]

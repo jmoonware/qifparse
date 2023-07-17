@@ -360,7 +360,10 @@ class QifParser(object):
             elif line[0] == 'P':
                 curItem.first_line = line[1:]
             elif line[0] == 'L':
-                curItem.to_account = line[2:-1]
+                if line[1:].startswith('['):
+                    curItem.to_account = line[2:-1]
+                else:
+                    curItem.category = line[1:]
             elif line[0] == '$':
                 curItem.amount_transfer = self.to_decimal(line[1:])
             elif line[0] == 'O':
